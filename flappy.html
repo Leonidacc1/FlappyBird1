@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Puggy Bird — игра с мопсом для Telegram</title>
+  <style>
+    body,html {margin:0;padding:0;background:#70c5ce;overflow:hidden;touch-action:none;}
+    canvas {display:block;margin:0 auto;background:#70c5ce;}
+    #menuOverlay {
+      position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;
+    }
+    #menuOverlay.hidden {display:none;pointer-events:none;}
+    button {padding:10px 20px;margin:5px;font-size:18px;}
+  </style>
+</head>
+<body>
+  <div id="menuOverlay">
+    <h1 style="color:white;">Puggy Bird</h1>
+    <button id="startBtn">Старт</button>
+    <button id="leaderboardBtn">🏅 Лидерборд</button>
+  </div>
+  <canvas id="gameCanvas" width="320" height="480"></canvas>
+
+<script>
+(function(){
+  const tg = window.Telegram && (window.Telegram.WebApp || window.TelegramGameProxy);
+  if (window.Telegram && window.Telegram.WebApp) {
+    try {
+      Telegram.WebApp.expand();
+      Telegram.WebApp.disableVerticalSwipes();
+      Telegram.WebApp.ready();
+    } catch(e) {}
+  }
+
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const menuOverlay = document.getElementById('menuOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const leaderboardBtn = document.getElementById('leaderboardBtn');
+
+  let score = 0, best = 0;
+  let gameState = 'menu';
+
+  function startGame(){
+    menuOverlay.classList.add('hidden');
+    gameState = 'playing';
+    score = 0;
+    // ... инициализация мира, труб и мопса
+  }
+
+  function flap(){
+    // ... логика взмаха мопса
+  }
+
+  function handleStartInput(e){
+    e.preventDefault();
+    if (gameState !== 'playing') {
+      startGame();
+    } else {
+      flap();
+    }
+  }
+
+  function shareScore(){
+    const payload = JSON.stringify({ type:'puggybird_score', score, best });
+    if(window.Telegram && window.Telegram.WebApp){
+      try {
+        Telegram.WebApp.sendData(payload);
+        if (window.Telegram.WebApp.platform) {
+          Telegram.WebApp.invoke('setGameScore', { score: score, force: true }, function(result){
+            console.log('Score sent', result);
+          });
+        }
+        return;
+      }catch(e){}
+    }
+  }
+
+  function openLeaderboard(){
+    if(window.Telegram && window.Telegram.WebApp){
+      try {
+        Telegram.WebApp.invoke('showLeaderboard', {}, function(result){
+          console.log('Leaderboard shown', result);
+        });
+      } catch(e){ console.error(e); }
+    }
+  }
+
+  startBtn.addEventListener('click', startGame);
+  startBtn.addEventListener('touchstart', function(e){ e.preventDefault(); startGame(); });
+
+  leaderboardBtn.addEventListener('click', openLeaderboard);
+  leaderboardBtn.addEventListener('touchstart', function(e){ e.preventDefault(); openLeaderboard(); });
+
+  canvas.addEventListener('mousedown', handleStartInput);
+  canvas.addEventListener('touchstart', handleStartInput);
+
+  function gameLoop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if (gameState === 'menu') {
+      // можно нарисовать фон меню
+    } else if (gameState === 'playing') {
+      // ... отрисовка и логика игры
+    }
+    requestAnimationFrame(gameLoop);
+  }
+
+  gameLoop();
+})();
+</script>
+</body>
+</html>

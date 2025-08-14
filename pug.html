@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+  <title>Pug Clicker — Cookie Style</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Inter:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1:#8ec5ff; --bg2:#c7e7ff;
+      --panel:#0b1220cc; --panel-solid:#0b1220; --br:#1f2937;
+      --txt:#eaf2fb; --muted:#a4b8ce; --accent:#ffd089;
+      --ok:#22c55e; --err:#ef4444;
+      --heart:#ff0000; --heartStroke:#7a0000;
+      --gold:#ffd089;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(var(--bg1),var(--bg2));color:var(--txt);font-family:Inter, system-ui,-apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial;overscroll-behavior:none}
+    .wrap{min-height:100%;display:grid;grid-template-rows:auto 1fr auto}
+    header,footer{padding:10px 12px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.12);backdrop-filter:blur(6px)}
+    header h1{margin:0;font-size:18px;letter-spacing:.2px;font-weight:800}
+    .panel{max-width:1180px;margin:14px auto;padding:12px;background:var(--panel);border:1px solid var(--br);border-radius:16px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .stats{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .chip{background:var(--panel-solid);border:1px solid var(--br);border-radius:14px;padding:8px 10px;font-weight:800;display:inline-flex;gap:8px;align-items:center}
+    .btn{background:var(--panel-solid);border:1px solid var(--br);color:var(--txt);padding:9px 12px;border-radius:12px;font-weight:800;cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+    .btn[disabled]{opacity:.5;cursor:not-allowed}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px}
+    .card{background:var(--panel-solid);border:1px solid var(--br);border-radius:16px;padding:12px;display:grid;gap:8px}
+    .price{display:flex;justify-content:flex-end;gap:6px;color:var(--accent);font-weight:900}
+    canvas#cv{display:block;margin:10px auto;border-radius:16px;border:1px solid var(--br);max-width:min(96vw,740px);width:100%;height:auto;background:transparent;touch-action:none}
+    .muted{color:var(--muted)}
+    .notice{position:fixed;left:0;right:0;top:10px;display:grid;place-items:center;pointer-events:none;z-index:60}
+    .toast{background:#0b1220; border:1px solid var(--br); padding:10px 12px; border-radius:12px; font-weight:800; box-shadow:0 10px 40px rgba(0,0,0,.35); animation:pop .24s ease-out}
+    @keyframes pop{from{transform:translateY(-6px) scale(.98);opacity:.0}to{transform:translateY(0) scale(1);opacity:1}}
+    dialog{border:none;padding:0;background:transparent}
+    dialog::backdrop{background:rgba(0,0,0,.35);backdrop-filter:blur(4px)}
+    .sheet{width:min(92vw,860px);background:var(--panel);border:1px solid var(--br);border-radius:16px;padding:12px}
+    .tabs{display:flex;gap:8px;margin:6px 0 2px}
+    .tabs .btn.active{outline:2px solid var(--gold)}
+    .progress{height:10px;background:#111827;border:1px solid var(--br);border-radius:999px;overflow:hidden}
+    .progress>i{display:block;height:100%;background:linear-gradient(90deg,#60a5fa,#22c55e)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🐶 Pug Clicker — Cookie Style</h1>
+      <div class="row">
+        <button class="btn" id="sndBtn">🔊 Звук</button>
+        <button class="btn" id="shopBtn">🛍️ Магазин</button>
+        <button class="btn" id="skinsBtn">🎨 Скины</button>
+        <button class="btn" id="questsBtn">🧩 Квесты</button>
+        <button class="btn" id="resetBtn">Сброс</button>
+        <button class="btn" id="exportBtn">Экспорт</button>
+        <button class="btn" id="importBtn">Импорт</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="panel" id="gamePanel">
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <div class="stats">
+            <span class="chip">🍖 Кости: <b id="bones">0</b></span>
+            <span class="chip">💪 За клик: <b id="dpc">1</b></span>
+            <span class="chip">⏱️ В сек: <b id="dps">0</b></span>
+            <span class="chip">🎯 Клики: <b id="clicks">0</b></span>
+            <span class="chip">🏅 Мульти: <b id="mult">x1</b></span>
+          </div>
+          <div class="row">
+            <button class="btn" id="tapBtn">Тык по мопсу</button>
+          </div>
+        </div>
+
+        <canvas id="cv" width="740" height="500" aria-label="Кликай по мопсу"></canvas>
+      </div>
+
+      <div class="panel" id="shopPanel" style="display:none">
+        <div class="row" style="justify-content:space-between">
+          <h3 style="margin:0">🛍️ Магазин улучшений</h3>
+          <button class="btn" id="closeShop">Закрыть</button>
+        </div>
+        <p class="muted">Покупай апгрейды за 🍖 кости. Цена растёт с каждой покупкой. DPC — кости за клик, DPS — кости в секунду.</p>
+        <div id="shopGrid" class="grid"></div>
+      </div>
+
+      <dialog id="skinsDialog">
+        <div class="sheet">
+          <div class="row" style="justify-content:space-between">
+            <h3 style="margin:0">🎨 Скины мопса</h3>
+            <button class="btn" id="closeSkins">Закрыть</button>
+          </div>
+          <div id="skinsGrid" class="grid" style="margin-top:8px"></div>
+        </div>
+      </dialog>
+
+      <dialog id="questsDialog">
+        <div class="sheet">
+          <div class="row" style="justify-content:space-between">
+            <h3 style="margin:0">🧩 Мини‑квесты</h3>
+            <button class="btn" id="closeQuests">Закрыть</button>
+          </div>
+          <p class="muted">Выполняй задания и забирай награды 🍖. Квесты обновляются ежедневно.</p>
+          <div id="questsList" class="grid" style="margin-top:8px"></div>
+        </div>
+      </dialog>
+
+      <div class="notice" id="notice"></div>
+    </main>
+
+    <footer class="muted">
+      Офлайн‑версия • Прогресс хранится в браузере (localStorage)
+    </footer>
+  </div>
+
+<script>
+/* ========= ДАННЫЕ ========= */
+const STORE_KEY = 'pug_clicker_cookie_v2';
+const ITEMS = [
+  { id:'paw1',  name:'Сильная лапка I',  type:'dpc', amount:1,  baseCost:20,   costScale:1.15, desc:'+1 кость за клик' },
+  { id:'paw2',  name:'Сильная лапка II', type:'dpc', amount:5,  baseCost:120,  costScale:1.17, desc:'+5 костей за клик' },
+  { id:'paw3',  name:'Турбо-тап',        type:'dpc', amount:20, baseCost:1600, costScale:1.22, desc:'+20 за клик' },
+  { id:'auto1', name:'Миска-помощник',   type:'dps', amount:1,  baseCost:60,   costScale:1.16, desc:'+1 кость/сек' },
+  { id:'auto2', name:'Робо-косточка',    type:'dps', amount:5,  baseCost:260,  costScale:1.18, desc:'+5 костей/сек' },
+  { id:'auto3', name:'Костемёт',         type:'dps', amount:20, baseCost:1800, costScale:1.20, desc:'+20 костей/сек' },
+];
+
+const SKINS = [
+  { id:'classic', name:'Классика', price:0 },
+  { id:'bee',     name:'Пчёлка',   price:150 },
+  { id:'super',   name:'Супер',    price:400 },
+  { id:'neon',    name:'Неон',     price:600 }
+];
+
+const QUEST_TEMPLATES = [
+  { id:'q_taps_100',  name:'Сделай 100 тапов',     reward:120, type:'clicks', need:100 },
+  { id:'q_bones_500', name:'Накопи 500 костей',    reward:180, type:'bones',  need:500 },
+  { id:'q_buy_3',     name:'Купи 3 улучшения',     reward:220, type:'buys',   need:3 },
+];
+
+let S = load() || { bones:0, clicks:0, dpc:1, dps:0, owned:{}, buys:0, ach:{}, sound:true, skin:'classic', inv:{classic:1}, quests:genDailyQuests(), last:Date.now() };
+
+function genDailyQuests(){
+  const day = new Date().toDateString();
+  const qs = QUEST_TEMPLATES.map(q=>({ key:q.id+':'+day, id:q.id, prog:0, done:false, claimed:false }));
+  return { day, list:qs };
+}
+
+/* ========= УТИЛИТЫ ========= */
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
+function load(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)); } catch(e){ return null; } }
+function resetAll(){ localStorage.removeItem(STORE_KEY); S = { bones:0, clicks:0, dpc:1, dps:0, owned:{}, buys:0, ach:{}, sound:true, skin:'classic', inv:{classic:1}, quests:genDailyQuests(), last:Date.now() }; save(); syncUI(); toast('Сброшено', 'ok'); }
+function exportData(){ const blob = new Blob([JSON.stringify(S,null,2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pug-clicker-save.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000); }
+function importData(file){ const fr=new FileReader(); fr.onload=()=>{ try{ const obj=JSON.parse(fr.result); if(!obj||typeof obj!=='object') throw 0; S=obj; save(); syncUI(); toast('Импортировано', 'ok'); }catch(e){ toast('Неверный файл', 'err'); } }; fr.readAsText(file); }
+function price(itemId){ const it=ITEMS.find(i=>i.id===itemId); const n=S.owned[itemId]|0; return Math.round(it.baseCost*Math.pow(it.costScale, n)); }
+function canBuy(itemId){ return S.bones >= price(itemId); }
+function buy(itemId){
+  const it=ITEMS.find(i=>i.id===itemId); if(!it) return;
+  const p=price(itemId); if(S.bones < p){ toast('Недостаточно костей', 'err'); sfx.err(); return; }
+  S.bones -= p; S.owned[itemId]=(S.owned[itemId]|0)+1; S.buys++;
+  if(it.type==='dpc') S.dpc += it.amount;
+  if(it.type==='dps') S.dps += it.amount;
+  save(); syncUI(); toast(`Куплено: ${it.name}`, 'ok'); sfx.buy();
+  bumpQuest('q_buy_3', 1); checkDailyReset();
+}
+function toast(msg, kind='ok'){
+  const wrap=document.getElementById('notice');
+  const div=document.createElement('div');
+  div.className='toast'; div.textContent=msg;
+  div.style.color = kind==='ok' ? '#c7f9cc' : '#fecaca';
+  wrap.appendChild(div);
+  setTimeout(()=>{ div.style.transition='opacity .25s ease'; div.style.opacity='0'; setTimeout(()=>div.remove(),260); }, 1200);
+}
+
+/* ========= КАНВАС ========= */
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d',{alpha:true});
+let W=cv.width, H=cv.height;
+function resize(){
+  const dpr = Math.min(3, Math.max(1, Math.floor(window.devicePixelRatio||1)));
+  const cssW = Math.min(740, Math.floor(window.innerWidth*0.96));
+  const cssH = Math.round(cssW * 0.68);
+  cv.style.width = cssW+'px';
+  cv.style.height = cssH+'px';
+  cv.width = Math.round(cssW * dpr);
+  cv.height= Math.round(cssH * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  W=cssW; H=cssH;
+}
+addEventListener('resize', resize, {passive:true}); resize();
+
+/* ========= ВХОД, ЭФФЕКТЫ ========= */
+let pressed=false; let mult=1; let multTimer=0;
+const particles=[];
+function addBurst(x,y,amount){
+  for(let i=0;i<10;i++){
+    const a=Math.random()*Math.PI*2, v=60+Math.random()*140;
+    particles.push({x,y, vx:Math.cos(a)*v, vy:Math.sin(a)*v-60, r:3+Math.random()*4, life:0.8+Math.random()*0.4, t:'c', color:`hsl(${Math.floor(Math.random()*360)} 90% 60%)`});
+  }
+  particles.push({x,y, vx:(Math.random()*40-20), vy:-160, r:0, life:1.2, t:'+b', text:`+${amount}`});
+}
+
+cv.addEventListener('pointerdown', (e)=>{ e.preventDefault(); pressed=true; tap(1, e); }, {passive:false});
+cv.addEventListener('pointerup',   ()=>{ pressed=false; }, {passive:true});
+cv.addEventListener('pointermove', (e)=>{ if(pressed) tap(0.15, e); }, {passive:true});
+document.getElementById('tapBtn').addEventListener('click', (e)=> tap(1, e));
+
+function tap(power, e){
+  const mx = e && e.clientX ? e.clientX - cv.getBoundingClientRect().left : W/2;
+  const my = e && e.clientY ? e.clientY - cv.getBoundingClientRect().top  : H/2;
+  const gain = Math.max(1, Math.round(S.dpc * mult * power));
+  S.clicks += 1; S.bones += gain; save(); syncUI();
+  addBurst(mx, my, gain); sfx.click();
+  mult = Math.min(10, mult + 0.1); multTimer = 1.2; // затухает со временем, по‑cookie‑clicker
+  bumpQuest('q_taps_100', 1); bumpQuest('q_bones_500', gain); checkDailyReset();
+}
+
+function updateEffects(dt){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i]; p.life-=dt; if(p.life<=0){ particles.splice(i,1); continue; }
+    p.vy += 500*dt; p.x += p.vx*dt; p.y += p.vy*dt; if(p.t==='+b'){ p.vy += -400*dt; }
+  }
+  if(multTimer>0){ multTimer-=dt; if(multTimer<=0){ mult=1; }}
+}
+
+/* ========= РЕНДЕР ========= */
+function cloud(x,y){ ctx.beginPath(); ctx.ellipse(x,y,48,22,0,0,Math.PI*2); ctx.ellipse(x+30,y+4,26,16,0,0,Math.PI*2); ctx.ellipse(x-28,y+8,30,18,0,0,Math.PI*2); ctx.fill(); }
+function drawHeart(cx,cy,s){ ctx.save(); ctx.translate(cx,cy); ctx.beginPath(); const k=s*0.25; ctx.moveTo(0,-k*0.2); ctx.bezierCurveTo(k*2,-k*1.6, k*2.4,k*1.0, 0,k*2.2); ctx.bezierCurveTo(-k*2.4,k*1.0, -k*2,-k*1.6, 0,-k*0.2); ctx.closePath(); ctx.fillStyle='var(--heart)'; ctx.strokeStyle='var(--heartStroke)'; ctx.lineWidth=Math.max(2,s*0.02); ctx.fill(); ctx.stroke(); ctx.restore(); }
+
+function drawBG(t){
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#8ec5ff'); g.addColorStop(1,'#c7e7ff'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const heartS = Math.min(W,H)*0.62; const heartY = H*0.48; drawHeart(W*0.5, heartY, heartS);
+  ctx.save(); const fsz=Math.round(Math.min(W,H)*0.07); ctx.font=`${fsz}px 'Pacifico', cursive`; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillStyle='#fff'; ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=4; const title='Оливка, это отдых от рилсиков'; ctx.strokeText(title, W/2, heartY - heartS*0.65); ctx.fillText(title, W/2, heartY - heartS*0.65); ctx.restore();
+  ctx.save(); ctx.globalAlpha=0.9; ctx.fillStyle='#fff'; for(let i=0;i<4;i++){ const cx=((t*0.02)+i*W/4)%(W+220)-110; const cy=90 + i*18; cloud(cx,cy); } ctx.restore();
+}
+
+function drawPug(ts){
+  const x=W*0.5, y=H*0.62, r=56; const flap = Math.sin(ts*0.01)*0.1 + (pressed?0.2:0);
+  let body='#b08968', snout='#6d4c41', ear='#4b3f35', deco=null;
+  if(S.skin==='bee'){ body='#f6d365'; snout='#8b5e00'; ear='#5b3d00'; deco='stripes'; }
+  if(S.skin==='super'){ body='#c7a087'; snout='#5f463a'; ear='#3b2b24'; deco='cape'; }
+  if(S.skin==='neon'){ body='#111827'; snout='#0ea5e9'; ear='#22d3ee'; deco='glow'; }
+  ctx.save(); ctx.translate(x, y+r*1.05); ctx.scale(1,0.3); ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0,0,r*1.3,r*0.7,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle=body; ctx.beginPath(); ctx.ellipse(0,0,r*1.25,r*1.05,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=snout; ctx.beginPath(); ctx.ellipse(r*0.25,-r*0.2,r*0.95,r*0.75,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=ear; ctx.beginPath(); ctx.arc(-r*0.35,-r*1.2,r*0.38,0,Math.PI*2); ctx.arc(r*0.55,-r*1.2,r*0.38,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-r*0.05,-r*0.45,r*0.2,0,Math.PI*2); ctx.arc(r*0.45,-r*0.45,r*0.2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#1f2937'; ctx.beginPath(); ctx.arc(-r*0.05,-r*0.45,r*0.11,0,Math.PI*2); ctx.arc(r*0.45,-r*0.45,r*0.11,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#2b2b2b'; ctx.beginPath(); ctx.arc(r*0.2,-r*0.2,r*0.1,0,Math.PI*2); ctx.arc(r*0.55,-r*0.2,r*0.1,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#e0c9a6'; ctx.save(); ctx.translate(-r*0.55, r*0.1); ctx.rotate(-0.8+flap); ctx.beginPath(); ctx.ellipse(0,0,r*0.7,r*0.35,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  if(deco==='stripes'){ ctx.fillStyle='#00000033'; ctx.fillRect(-r*1.0,-r*0.6,r*2.0,r*0.2); ctx.fillRect(-r*1.0,0,r*2.0,r*0.2); }
+  if(deco==='cape'){ ctx.fillStyle='rgba(239,68,68,0.85)'; ctx.beginPath(); ctx.moveTo(-r*0.6,-r*0.2); ctx.quadraticCurveTo(-r*1.2,r*0.3, -r*0.4,r*1.0); ctx.lineTo(r*0.2,r*0.8); ctx.closePath(); ctx.fill(); }
+  if(deco==='glow'){ ctx.shadowBlur=18; ctx.shadowColor='#22d3ee'; }
+  ctx.restore();
+}
+
+function drawParticles(){
+  particles.forEach(p=>{
+    if(p.t==='c'){
+      ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    } else if(p.t==='+b'){
+      ctx.font='700 22px Inter, system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillText(p.text, p.x+1, p.y+1);
+      ctx.fillStyle='#fff'; ctx.fillText(p.text, p.x, p.y);
+    }
+  });
+}
+
+function frame(ts){
+  const now=performance.now(); const dt=(now-(frame._last||now))/1000; frame._last=now;
+  if(dt>0 && dt<1){ S.bones += S.dps * dt; }
+  updateEffects(dt); save();
+
+  ctx.clearRect(0,0,W,H);
+  drawBG(ts);
+  drawPug(ts);
+  drawParticles();
+
+  // HUD в канвасе: мультипликатор
+  ctx.save(); ctx.font='700 26px Inter, system-ui'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillStyle='#0006'; ctx.fillText('x'+mult.toFixed(1), W/2+2, 10+2); ctx.fillStyle='#fff'; ctx.fillText('x'+mult.toFixed(1), W/2, 10); ctx.restore();
+
+  requestAnimationFrame(frame);
+}
+
+/* ========= UI ========= */
+const bonesEl=document.getElementById('bones');
+const dpcEl=document.getElementById('dpc');
+const dpsEl=document.getElementById('dps');
+const clicksEl=document.getElementById('clicks');
+const multEl=document.getElementById('mult');
+
+function syncUI(){
+  bonesEl.textContent=Math.floor(S.bones);
+  dpcEl.textContent=S.dpc; dpsEl.textContent=Math.floor(S.dps); clicksEl.textContent=S.clicks; multEl.textContent='x'+mult.toFixed(1);
+  renderShop(); renderSkins(); renderQuests(); updateSoundBtn();
+}
+
+function renderShop(){
+  const grid=document.getElementById('shopGrid'); grid.innerHTML='';
+  ITEMS.forEach(it=>{
+    const n=S.owned[it.id]|0; const p=price(it.id);
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:900">${it.name}</div><div class="price">🍖 ${p}</div></div><div class="muted">${it.desc}</div><div class="muted">Куплено: <b>${n}</b></div><button class="btn" ${S.bones<p?'disabled':''} data-buy="${it.id}">Купить</button>`;
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll('[data-buy]').forEach(b=> b.onclick=()=>buy(b.getAttribute('data-buy')) );
+}
+
+/* ========== СКИНЫ ========== */
+const skinsDialog=document.getElementById('skinsDialog');
+function renderSkins(){
+  const grid=document.getElementById('skinsGrid'); if(!grid) return; grid.innerHTML='';
+  SKINS.forEach(s=>{
+    const own=!!S.inv[s.id]; const active=S.skin===s.id; const price=s.price;
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:900">${s.name}</div><div class="price">🍖 ${price}</div></div><canvas width="200" height="110" style="width:100%;height:auto;border-radius:12px;border:1px solid var(--br)"></canvas><div class="row" style="justify-content:flex-end"><button class="btn" data-act="${own?(active?'ok':'sel'):'buy'}" data-id="${s.id}">${own?(active?'Выбран':'Выбрать'):'Купить'}</button></div>`;
+    grid.appendChild(card);
+    const pv=card.querySelector('canvas'); const cx=pv.getContext('2d'); drawSkinPreview(cx,pv.width,pv.height,s.id);
+  });
+  grid.querySelectorAll('button[data-act]')?.forEach(btn=>{
+    btn.onclick=()=>{
+      const id=btn.getAttribute('data-id'); const sk=SKINS.find(x=>x.id===id);
+      if(btn.dataset.act==='buy'){
+        if(S.bones>=sk.price){ S.bones-=sk.price; S.inv[id]=1; S.skin=id; save(); syncUI(); toast('Скин куплен', 'ok'); sfx.buy(); }
+        else { toast('Не хватает костей', 'err'); sfx.err(); }
+      } else if(btn.dataset.act==='sel'){ S.skin=id; save(); syncUI(); toast('Скин выбран', 'ok'); }
+    };
+  });
+}
+
+function drawSkinPreview(cx,w,h,id){ cx.clearRect(0,0,w,h); cx.save(); cx.translate(w*0.5,h*0.65); const r=22; let body='#b08968', snout='#6d4c41', ear='#4b3f35', deco=null; if(id==='bee'){ body='#f6d365'; snout='#8b5e00'; ear='#5b3d00'; deco='stripes'; } if(id==='super'){ body='#c7a087'; snout='#5f463a'; ear='#3b2b24'; deco='cape'; } if(id==='neon'){ body='#111827'; snout='#0ea5e9'; ear='#22d3ee'; deco='glow'; } cx.fillStyle=body; cx.beginPath(); cx.ellipse(0,0,r*1.25,r*1.05,0,0,Math.PI*2); cx.fill(); cx.fillStyle=snout; cx.beginPath(); cx.ellipse(r*0.25,-r*0.2,r*0.95,r*0.75,0,0,Math.PI*2); cx.fill(); cx.fillStyle=ear; cx.beginPath(); cx.arc(-r*0.35,-r*1.2,r*0.38,0,Math.PI*2); cx.arc(r*0.55,-r*1.2,r*0.38,0,Math.PI*2); cx.fill(); if(deco==='stripes'){ cx.fillStyle='#00000033'; cx.fillRect(-r*1.0,-r*0.6,r*2.0,r*0.2); cx.fillRect(-r*1.0,0,r*2.0,r*0.2); } if(deco==='cape'){ cx.fillStyle='rgba(239,68,68,0.85)'; cx.beginPath(); cx.moveTo(-r*0.6,-r*0.2); cx.quadraticCurveTo(-r*1.2,r*0.3, -r*0.4,r*1.0); cx.lineTo(r*0.2,r*0.8); cx.closePath(); cx.fill(); } cx.restore(); }
+
+/* ========== КВЕСТЫ ========== */
+const questsDialog=document.getElementById('questsDialog');
+function checkDailyReset(){ const today=new Date().toDateString(); if(S.quests.day!==today){ S.quests=genDailyQuests(); save(); renderQuests(); } }
+function bumpQuest(id, val){ checkDailyReset(); const qT=QUEST_TEMPLATES.find(q=>q.id===id); const q=S.quests.list.find(x=>x.id===id); if(!q||q.done) return; q.prog = Math.min(qT.need, q.prog + val); if(q.prog>=qT.need){ q.done=true; toast('Квест выполнен: '+qT.name, 'ok'); sfx.buy(); } save(); renderQuests(); }
+function claimQuest(key){ const qEntry=S.quests.list.find(x=> (x.id+':'+S.quests.day)===key ); if(!qEntry||qEntry.claimed===true){ return; } const templ=QUEST_TEMPLATES.find(q=>q.id===qEntry.id); if(qEntry.done){ S.bones += templ.reward; qEntry.claimed=true; save(); syncUI(); toast('Награда: +'+templ.reward+' 🍖', 'ok'); } }
+function renderQuests(){ const box=document.getElementById('questsList'); if(!box) return; box.innerHTML=''; checkDailyReset(); S.quests.list.forEach(q=>{ const t=QUEST_TEMPLATES.find(x=>x.id===q.id); const prog=Math.min(1, (q.prog||0)/t.need); const key=q.id+':'+S.quests.day; const card=document.createElement('div'); card.className='card'; card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:900">${t.name}</div><div class="price">🍖 ${t.reward}</div></div><div class="muted">${q.prog|0} / ${t.need}</div><div class="progress"><i style="width:${(prog*100).toFixed(0)}%"></i></div><div class="row" style="justify-content:flex-end"><button class="btn" data-claim="${key}" ${q.done&&!q.claimed?'':'disabled'}>Забрать</button></div>`; box.appendChild(card); }); box.querySelectorAll('[data-claim]').forEach(b=> b.onclick=()=>claimQuest(b.getAttribute('data-claim')) ); }
+
+/* ========= SFX ========= */
+const AC = window.AudioContext||window.webkitAudioContext; const audio = AC ? new AC() : null;
+function updateSoundBtn(){ const b=document.getElementById('sndBtn'); b.textContent = (S.sound? '🔊' : '🔇') + ' Звук'; }
+const sfx={
+  click(){ if(!audio||!S.sound) return; const t=audio.currentTime; const o=audio.createOscillator(); const g=audio.createGain(); const f=audio.createBiquadFilter(); o.type='triangle'; o.frequency.value=520; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.24, t+0.01); g.gain.exponentialRampToValueAtTime(0.0001, t+0.12); f.type='lowpass'; f.frequency.setValueAtTime(1600, t); o.connect(f); f.connect(g); g.connect(audio.destination); o.start(t); o.stop(t+0.14); },
+  buy(){ if(!audio||!S.sound) return; const t=audio.currentTime; const o=audio.createOscillator(); const g=audio.createGain(); o.type='sine'; o.frequency.value=880; g.gain.value=0.16; o.connect(g); g.connect(audio.destination); o.start(t); o.frequency.exponentialRampToValueAtTime(1460, t+0.2); g.gain.exponentialRampToValueAtTime(0.0001, t+0.22); o.stop(t+0.24); },
+  err(){ if(!audio||!S.sound) return; const t=audio.currentTime; const o=audio.createOscillator(); const g=audio.createGain(); o.type='square'; o.frequency.value=180; g.gain.value=0.18; o.connect(g); g.connect(audio.destination); o.start(t); g.gain.exponentialRampToValueAtTime(0.0001, t+0.18); o.stop(t+0.2); }
+};
+addEventListener('pointerdown', ()=>{ if(audio && audio.state==='suspended'){ audio.resume().catch(()=>{});} }, {passive:true});
+
+document.getElementById('sndBtn').onclick=()=>{ S.sound=!S.sound; save(); updateSoundBtn(); };
+
+/* ========= ПАНЕЛИ ========= */
+const shopPanel = document.getElementById('shopPanel');
+document.getElementById('shopBtn').onclick = ()=> shopPanel.style.display='block';
+document.getElementById('closeShop').onclick = ()=> shopPanel.style.display='none';
+
+document.getElementById('skinsBtn').onclick = ()=>{ renderSkins(); skinsDialog.showModal(); };
+document.getElementById('closeSkins').onclick = ()=> skinsDialog.close();
+
+document.getElementById('questsBtn').onclick = ()=>{ renderQuests(); questsDialog.showModal(); };
+document.getElementById('closeQuests').onclick = ()=> questsDialog.close();
+
+/* ========= РЕЗЕТ/ИМПОРТ/ЭКСПОРТ ========= */
+document.getElementById('resetBtn').onclick = ()=> { if(confirm('Точно сбросить прогресс?')) resetAll(); };
+document.getElementById('exportBtn').onclick = exportData;
+document.getElementById('importBtn').onclick = ()=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json'; inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(f) importData(f); }; inp.click(); };
+
+/* ========= СТАРТ ========= */
+syncUI();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
