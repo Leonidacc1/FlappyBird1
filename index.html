@@ -1,117 +1,174 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-  const tg = window.Telegram.WebApp;
-  tg.expand();  // откроет игру на весь экран
-</script>
-    <meta charset="UTF-8">
-    <title>Flappy Bird</title>
-    <style>
-        canvas {
-            display: block;
-            margin: auto;
-            background: #70c5ce;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Flappy Bird Telegram</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #70c5ce;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      text-align: center;
+      color: white;
+    }
+    #gameCanvas {
+      display: block;
+      margin: auto;
+      background: #70c5ce;
+    }
+    #user-info {
+      margin-top: 10px;
+      font-size: 16px;
+    }
+  </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="320" height="480"></canvas>
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
+  <canvas id="gameCanvas" width="320" height="480"></canvas>
+  <div id="user-info"></div>
 
-        let bird = { x: 50, y: 150, w: 20, h: 20, gravity: 1.5, velocity: 0 };
-        let pipes = [];
-        let score = 0;
-        let gameOver = false;
+  <script>
+    // Инициализация Telegram WebApp
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
 
-        function drawBird() {
-            ctx.fillStyle = "yellow";
-            ctx.fillRect(bird.x, bird.y, bird.w, bird.h);
+    // Получение информации о пользователе
+    const user = tg.initDataUnsafe.user;
+    const username = user?.first_name || "Гость";
+    document.getElementById("user-info").textContent = `Привет, ${username}!`;
+
+    // Игра
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let bird = {
+      x: 50,
+      y: 150,
+      w: 20,
+      h: 20,
+      gravity: 0.6,
+      velocity: 0,
+      lift: -10
+    };
+
+    let pipes = [];
+    let frame = 0;
+    let score = 0;
+    let gameOver = false;
+
+    function drawBird() {
+      ctx.fillStyle = "yellow";
+      ctx.fillRect(bird.x, bird.y, bird.w, bird.h);
+    }
+
+    function drawPipes() {
+      ctx.fillStyle = "green";
+      for (let p of pipes) {
+        ctx.fillRect(p.x, 0, 40, p.top);
+        ctx.fillRect(p.x, p.top + p.gap, 40, canvas.height - p.top - p.gap);
+      }
+    }
+
+    function updatePipes() {
+      for (let p of pipes) {
+        p.x -= 2;
+
+        // Столкновение
+        if (
+          bird.x < p.x + 40 &&
+          bird.x + bird.w > p.x &&
+          (bird.y < p.top || bird.y + bird.h > p.top + p.gap)
+        ) {
+          gameOver = true;
         }
 
-        function drawPipes() {
-            ctx.fillStyle = "green";
-            pipes.forEach(p => {
-                ctx.fillRect(p.x, 0, 40, p.top);
-                ctx.fillRect(p.x, p.top + 100, 40, canvas.height - p.top - 100);
-            });
+        // Очки
+        if (!p.passed && p.x + 40 < bird.x) {
+          score++;
+          p.passed = true;
+        }
+      }
+
+      // Удалить старые трубы
+      pipes = pipes.filter(p => p.x + 40 > 0);
+    }
+
+    function addPipe() {
+      let top = Math.floor(Math.random() * 200) + 20;
+      let gap = 120;
+      pipes.push({ x: canvas.width, top, gap, passed: false });
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "white";
+      ctx.font = "20px Arial";
+      ctx.fillText(`Очки: ${score}`, 10, 25);
+    }
+
+    function drawGameOver() {
+      ctx.fillStyle = "red";
+      ctx.font = "30px Arial";
+      ctx.fillText("Игра окончена", 70, canvas.height / 2);
+    }
+
+    function resetGame() {
+      bird.y = 150;
+      bird.velocity = 0;
+      pipes = [];
+      frame = 0;
+      score = 0;
+      gameOver = false;
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!gameOver) {
+        bird.velocity += bird.gravity;
+        bird.y += bird.velocity;
+
+        if (bird.y + bird.h > canvas.height || bird.y < 0) {
+          gameOver = true;
         }
 
-        function drawScore() {
-            ctx.fillStyle = "white";
-            ctx.font = "20px Arial";
-            ctx.fillText("Score: " + score, 10, 20);
+        if (frame % 90 === 0) {
+          addPipe();
         }
 
-        function update() {
-            if (gameOver) return;
+        updatePipes();
+        drawPipes();
+        drawBird();
+        drawScore();
+      } else {
+        drawPipes();
+        drawBird();
+        drawScore();
+        drawGameOver();
+      }
 
-            bird.velocity += bird.gravity;
-            bird.y += bird.velocity;
+      frame++;
+      requestAnimationFrame(gameLoop);
+    }
 
-            if (bird.y > canvas.height || bird.y < 0) {
-                gameOver = true;
-            }
+    function flap() {
+      if (!gameOver) {
+        bird.velocity = bird.lift;
+      } else {
+        resetGame();
+      }
+    }
 
-            pipes.forEach(p => {
-                p.x -= 2;
+    // Управление: клик или пробел
+    document.addEventListener("click", flap);
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") flap();
+    });
 
-                if (p.x + 40 < 0) {
-                    p.x = canvas.width;
-                    p.top = Math.floor(Math.random() * 200) + 50;
-                    score++;
-                }
-
-                // Collision
-                if (
-                    bird.x < p.x + 40 && bird.x + bird.w > p.x &&
-                    (bird.y < p.top || bird.y + bird.h > p.top + 100)
-                ) {
-                    gameOver = true;
-                }
-            });
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBird();
-            drawPipes();
-            drawScore();
-
-            if (gameOver) {
-                ctx.fillStyle = "red";
-                ctx.font = "30px Arial";
-                ctx.fillText("Game Over", 80, canvas.height / 2);
-            }
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        function flap() {
-            if (!gameOver) {
-                bird.velocity = -12;
-            } else {
-                // Reset game
-                bird.y = 150;
-                bird.velocity = 0;
-                pipes = [{ x: 300, top: 100 }];
-                score = 0;
-                gameOver = false;
-            }
-        }
-
-        document.addEventListener("keydown", flap);
-        document.addEventListener("click", flap);
-
-        pipes = [{ x: 300, top: 100 }];
-        gameLoop();
-    </script>
+    // Старт
+    gameLoop();
+  </script>
 </body>
 </html>
