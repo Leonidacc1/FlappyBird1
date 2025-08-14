@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Flappy Bird</title>
+    <style>
+        canvas {
+            display: block;
+            margin: auto;
+            background: #70c5ce;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="320" height="480"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        let bird = { x: 50, y: 150, w: 20, h: 20, gravity: 1.5, velocity: 0 };
+        let pipes = [];
+        let score = 0;
+        let gameOver = false;
+
+        function drawBird() {
+            ctx.fillStyle = "yellow";
+            ctx.fillRect(bird.x, bird.y, bird.w, bird.h);
+        }
+
+        function drawPipes() {
+            ctx.fillStyle = "green";
+            pipes.forEach(p => {
+                ctx.fillRect(p.x, 0, 40, p.top);
+                ctx.fillRect(p.x, p.top + 100, 40, canvas.height - p.top - 100);
+            });
+        }
+
+        function drawScore() {
+            ctx.fillStyle = "white";
+            ctx.font = "20px Arial";
+            ctx.fillText("Score: " + score, 10, 20);
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+
+            if (bird.y > canvas.height || bird.y < 0) {
+                gameOver = true;
+            }
+
+            pipes.forEach(p => {
+                p.x -= 2;
+
+                if (p.x + 40 < 0) {
+                    p.x = canvas.width;
+                    p.top = Math.floor(Math.random() * 200) + 50;
+                    score++;
+                }
+
+                // Collision
+                if (
+                    bird.x < p.x + 40 && bird.x + bird.w > p.x &&
+                    (bird.y < p.top || bird.y + bird.h > p.top + 100)
+                ) {
+                    gameOver = true;
+                }
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBird();
+            drawPipes();
+            drawScore();
+
+            if (gameOver) {
+                ctx.fillStyle = "red";
+                ctx.font = "30px Arial";
+                ctx.fillText("Game Over", 80, canvas.height / 2);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function flap() {
+            if (!gameOver) {
+                bird.velocity = -12;
+            } else {
+                // Reset game
+                bird.y = 150;
+                bird.velocity = 0;
+                pipes = [{ x: 300, top: 100 }];
+                score = 0;
+                gameOver = false;
+            }
+        }
+
+        document.addEventListener("keydown", flap);
+        document.addEventListener("click", flap);
+
+        pipes = [{ x: 300, top: 100 }];
+        gameLoop();
+    </script>
+</body>
+</html>
