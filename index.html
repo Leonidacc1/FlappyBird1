@@ -116,7 +116,7 @@
     pipes = pipes.filter(p => p.x + p.width > 0);
 
     foods.forEach(f => {
-      f.x -= 2.2;
+      f.x -= 1.8;
       if (
         !f.collected &&
         bird.x < f.x + f.width &&
@@ -131,7 +131,7 @@
 
     foods = foods.filter(f => f.x + f.width > 0 && !f.collected);
 
-    if (frame % 100 === 0) {
+    if (frame % 140 === 0) {
       addPipe();
     }
 
